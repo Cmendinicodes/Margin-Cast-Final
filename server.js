@@ -5,6 +5,7 @@ dotenv.config();
 // Dynamic imports AFTER dotenv.config() so Stripe/Redis/Clerk clients
 // see the env vars when their modules initialize
 const { handleRunValuation }   = await import("./api/run-valuation.js");
+const { handleRunQuant }       = await import("./api/run-quant.js");
 const { handleCreateCheckout } = await import("./api/create-checkout.js");
 const { handleWebhook }        = await import("./api/webhook.js");
 const { handleUsage }          = await import("./api/usage.js");
@@ -18,6 +19,7 @@ app.post("/api/webhook", express.raw({ type: "application/json" }), handleWebhoo
 app.use(express.json({ limit: "2mb" }));
 
 app.post("/api/run-valuation",   handleRunValuation);
+app.post("/api/run-quant",       handleRunQuant);
 app.post("/api/create-checkout", handleCreateCheckout);
 app.get("/api/usage",            handleUsage);
 

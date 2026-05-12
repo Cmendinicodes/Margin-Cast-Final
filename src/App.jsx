@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
+import MonteCarloTest from "./MonteCarloTest";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer,
@@ -200,30 +201,23 @@ function buildDataset(closes) {
 // ─────────────────────────────────────────────────────────────────────────────
 // YAHOO FINANCE FETCH
 // ─────────────────────────────────────────────────────────────────────────────
-async function fetchPrices(ticker) {
-  const end   = Math.floor(Date.now() / 1000);
-  const start = end - 2 * 365 * 24 * 3600;
-  const yhUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?period1=${start}&period2=${end}&interval=1d`;
-  const urls  = [
-    `https://corsproxy.io/?${encodeURIComponent(yhUrl)}`,
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(yhUrl)}`,
-    yhUrl,
-  ];
-  for (const url of urls) {
-    try {
-      const res  = await fetch(url, { signal: AbortSignal.timeout(12000) });
-      if (!res.ok) continue;
-      const json = await res.json();
-      const r    = json?.chart?.result?.[0];
-      if (!r) continue;
-      const pairs = (r.timestamp || [])
-        .map((t, i) => ({ d: new Date(t * 1000).toISOString().slice(0, 10), c: r.indicators?.quote?.[0]?.close?.[i] }))
-        .filter((p) => p.c != null && !isNaN(p.c));
-      if (pairs.length < 50) continue;
-      return { dates: pairs.map((p) => p.d), closes: pairs.map((p) => p.c) };
-    } catch { continue; }
+async function fetchPrices(ticker, token) {
+  const res = await fetch("/api/run-quant", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+    body: JSON.stringify({ ticker }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `Failed to fetch price data for "${ticker}".`);
   }
-  throw new Error(`Could not fetch price data for "${ticker}". Check the ticker symbol and your connection.`);
+  const prices = await res.json();
+  const valid = prices.filter((p) => p.close != null && !isNaN(p.close));
+  if (valid.length < 50) throw new Error(`Not enough price data returned for "${ticker}".`);
+  return { dates: valid.map((p) => p.date), closes: valid.map((p) => p.close) };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -811,13 +805,14 @@ function QuantPredictionApp() {
   const [loading,  setLoading]  = useState(false);
   const [error,    setError]    = useState("");
   const [result,   setResult]   = useState(null);
-
+  const { getToken } = useAuth();
   const runModel = useCallback(async () => {
     const sym = inputVal.trim().toUpperCase();
     if (!sym) return;
     setLoading(true); setError(""); setResult(null);
     try {
-      const { dates, closes } = await fetchPrices(sym);
+      const token = await getToken();
+      const { dates, closes } = await fetchPrices(sym, token);
       if (closes.length < 40) throw new Error("Need at least 40 trading days of data.");
 
       const dataset = buildDataset(closes);
@@ -858,7 +853,7 @@ function QuantPredictionApp() {
     } finally {
       setLoading(false);
     }
-  }, [inputVal]);
+  }, [inputVal, getToken]);
 
   const r = result;
 
@@ -1068,8 +1063,9 @@ export default function App() {
           </span>
           <nav style={{ display: "flex", gap: 2 }}>
             {[
-              { id: "valuation", label: "Valuation" },
-              { id: "quant",     label: "Quant Prediction" },
+              { id: "valuation",   label: "Valuation"        },
+              { id: "quant",       label: "Quant Prediction"  },
+              { id: "montecarlo",  label: "Monte Carlo"       },
             ].map((t) => (
               <button
                 key={t.id}
@@ -1101,7 +1097,7 @@ export default function App() {
                 PRO
               </div>
             ) : (
-              <UsageCounter refreshKey={usageRefresh} />
+              tab !== "montecarlo" && <UsageCounter refreshKey={usageRefresh} />
             )}
             <UserButton />
           </SignedIn>
@@ -1128,7 +1124,8 @@ export default function App() {
             onValuationComplete={() => setUsageRefresh((n) => n + 1)}
           />
         )}
-        {tab === "quant" && <QuantPredictionApp />}
+        {tab === "quant"       && <QuantPredictionApp />}
+        {tab === "montecarlo"  && <MonteCarloTest />}
       </div>
 
       <style>{`
