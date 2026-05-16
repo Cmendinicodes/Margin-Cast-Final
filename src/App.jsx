@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import MonteCarloTest from "./MonteCarloTest";
+import ToSGate from "./ToSGate";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer,
@@ -1016,9 +1017,10 @@ export default function App() {
   const isPro                           = user?.publicMetadata?.plan === "pro";
 
   // Success page
-  if (window.location.pathname === "/success") return <SuccessPage />;
+  if (window.location.pathname === "/success") return <ToSGate><SuccessPage /></ToSGate>;
 
   return (
+    <ToSGate>
     <div style={{
       minHeight: "100vh",
       background: "#0a0a0f",
@@ -1135,5 +1137,6 @@ export default function App() {
         input[type=range] { height: 4px; }
       `}</style>
     </div>
+    </ToSGate>
   );
 }
