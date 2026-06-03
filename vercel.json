@@ -5,6 +5,9 @@
   "functions": {
     "api/run-valuation.js": {
       "maxDuration": 60
+    },
+    "api/run-quant.js": {
+      "maxDuration": 60
     }
   }
 }
