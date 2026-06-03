@@ -48,39 +48,22 @@ async function parseBody(req) {
 }
 
 function buildPrompt(ticker, method, variables) {
-  const isPercent = (key) =>
-    key.toLowerCase().includes("rate") ||
-    key.toLowerCase().includes("growth") ||
-    key.toLowerCase().includes("return") ||
-    key.toLowerCase().includes("roe");
+  return `You are an expert financial analyst. Perform a ${method} valuation for ${ticker} using these inputs: ${JSON.stringify(variables)}.
 
-  const varDesc = method.variables
-    .map((v) => `${v.label}: ${variables[v.key] ?? v.default}${isPercent(v.key) ? "%" : "x"}`)
-    .join(", ");
+Respond with ONLY a raw JSON object. No markdown, no backticks, no explanation, no text before or after. Just the JSON.
 
-  return `You are a financial analyst. Use web search to find REAL, CURRENT financial data for the stock ticker: ${ticker.toUpperCase()}.
-
-Search for: current stock price, EPS, revenue, EBITDA, book value per share, dividend per share, shares outstanding, net debt, free cash flow, and analyst estimates for ${ticker.toUpperCase()}.
-
-Then perform a ${method.full} (${method.name}) valuation using these user-selected variables: ${varDesc}.
-
-Respond ONLY with a JSON object (no markdown, no backticks) in this exact format:
+The JSON must have exactly these fields:
 {
-  "companyName": "Full company name",
-  "ticker": "${ticker.toUpperCase()}",
-  "currentPrice": 123.45,
-  "fairValue": 145.00,
-  "updownside": "+17.2%",
-  "verdict": "UNDERVALUED",
-  "confidence": "Medium",
-  "keyMetrics": [
-    {"label": "Current Price", "value": "$123.45"},
-    {"label": "Fair Value Estimate", "value": "$145.00"},
-    {"label": "EPS (TTM)", "value": "$6.12"},
-    {"label": "P/E Ratio", "value": "20.2x"}
-  ],
-  "summary": "2-3 sentence plain-English explanation of the valuation result, key drivers, and any important caveats.",
-  "dataNote": "Brief note on data sources and freshness"
+  "companyName": "full company name",
+  "ticker": "ticker symbol",
+  "currentPrice": 000.00,
+  "fairValue": 000.00,
+  "updownside": "+00% undervalued" or "-00% overvalued",
+  "verdict": "Undervalued" or "Overvalued" or "Fairly Valued",
+  "confidence": "High" or "Medium" or "Low",
+  "keyMetrics": { "metric1": "value1", "metric2": "value2", "metric3": "value3" },
+  "summary": "2-3 sentence analysis",
+  "dataNote": "brief note on data sources or assumptions used"
 }`;
 }
 
@@ -145,14 +128,16 @@ export async function handleRunValuation(req, res) {
     return res.status(502).json({ error: "Upstream API error", detail: data });
   }
 
-  const text = data.content.filter((b) => b.type === "text").map((b) => b.text).join("");
-  const jsonMatch = text.replace(/```json|```/g, "").trim().match(/\{[\s\S]*\}/);
-  if (!jsonMatch) return res.status(502).json({ error: "Could not parse valuation response" });
-
+  const text = data.content[0].text;
+  console.log('Raw Anthropic response:', text);
+  const cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
   try {
-    return res.status(200).json(JSON.parse(jsonMatch[0]));
-  } catch {
-    return res.status(502).json({ error: "Invalid JSON in valuation response", raw: text.slice(0, 500) });
+    const json = JSON.parse(cleaned);
+    return res.status(200).json(json);
+  } catch (e) {
+    console.error('Parse error:', e.message);
+    console.error('Cleaned text was:', cleaned);
+    return res.status(500).json({ error: 'Failed to parse valuation response' });
   }
 }
 
