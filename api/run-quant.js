@@ -44,35 +44,33 @@ export async function handleRunQuant(req, res) {
   const { ticker } = body;
   if (!ticker) return res.status(400).json({ error: "Missing ticker" });
 
-  const prompt = `Fetch the last 2 years of daily closing prices for ${ticker.toUpperCase()} from Yahoo Finance. Return ONLY a valid JSON array of objects with "date" (YYYY-MM-DD) and "close" (number) fields, sorted oldest to newest. No markdown, no explanation, just the raw JSON array.`;
-
-  const anthropicRes = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": process.env.ANTHROPIC_API_KEY,
-      "anthropic-version": "2023-06-01",
-      "anthropic-beta": "web-search-2025-03-05",
-    },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 8000,
-      tools: [{ type: "web_search_20250305", name: "web_search" }],
-      messages: [{ role: "user", content: prompt }],
-    }),
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker.toUpperCase())}?interval=1d&range=2y`;
+  const yahooRes = await fetch(url, {
+    headers: { "User-Agent": "Mozilla/5.0" },
   });
 
-  const data = await anthropicRes.json();
-  if (!anthropicRes.ok) {
-    return res.status(502).json({ error: "Upstream API error", detail: data });
+  if (!yahooRes.ok) {
+    return res.status(502).json({ error: `Yahoo Finance returned ${yahooRes.status} for "${ticker}"` });
   }
 
-  const text = data.content.filter((b) => b.type === "text").map((b) => b.text).join("");
-  const cleaned = text.replace(/```json/g, "").replace(/```/g, "").trim();
+  const json = await yahooRes.json();
+  const chart = json?.chart?.result?.[0];
+  if (!chart) {
+    return res.status(502).json({ error: `No data returned for "${ticker}"` });
+  }
 
-  let prices;
-  try { prices = JSON.parse(cleaned); }
-  catch { return res.status(502).json({ error: "Invalid JSON in price data response", raw: text.slice(0, 500) }); }
+  const timestamps = chart.timestamp;
+  const closes = chart.indicators?.quote?.[0]?.close;
+  if (!timestamps || !closes) {
+    return res.status(502).json({ error: `Missing price data for "${ticker}"` });
+  }
+
+  const prices = timestamps
+    .map((ts, i) => ({
+      date: new Date(ts * 1000).toISOString().slice(0, 10),
+      close: closes[i],
+    }))
+    .filter((p) => p.close != null && !isNaN(p.close));
 
   return res.status(200).json(prices);
 }
