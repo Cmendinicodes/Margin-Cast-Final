@@ -128,7 +128,7 @@ export async function handleRunValuation(req, res) {
     return res.status(502).json({ error: "Upstream API error", detail: data });
   }
 
-  const text = data.content[0].text;
+  const text = data.content.filter((b) => b.type === "text").map((b) => b.text).join("");
   console.log('Raw Anthropic response:', text);
   const cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
   try {
