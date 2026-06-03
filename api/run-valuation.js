@@ -58,13 +58,9 @@ function buildPrompt(ticker, method, variables) {
     .map((v) => `${v.label}: ${variables[v.key] ?? v.default}${isPercent(v.key) ? "%" : "x"}`)
     .join(", ");
 
-  return `You are a financial analyst. Use web search to find REAL, CURRENT financial data for the stock ticker: ${ticker.toUpperCase()}.
+  return `You are a financial analyst. Search for current price and key metrics for ${ticker.toUpperCase()}, then perform a ${method.full} (${method.name}) valuation using: ${varDesc}.
 
-Search for: current stock price, EPS, revenue, EBITDA, book value per share, dividend per share, shares outstanding, net debt, free cash flow, and analyst estimates for ${ticker.toUpperCase()}.
-
-Then perform a ${method.full} (${method.name}) valuation using these user-selected variables: ${varDesc}.
-
-Respond ONLY with a JSON object (no markdown, no backticks) in this exact format:
+Respond ONLY with this JSON (no markdown, no backticks):
 {
   "companyName": "Full company name",
   "ticker": "${ticker.toUpperCase()}",
@@ -79,8 +75,8 @@ Respond ONLY with a JSON object (no markdown, no backticks) in this exact format
     {"label": "EPS (TTM)", "value": "$6.12"},
     {"label": "P/E Ratio", "value": "20.2x"}
   ],
-  "summary": "2-3 sentence plain-English explanation of the valuation result, key drivers, and any important caveats.",
-  "dataNote": "Brief note on data sources and freshness"
+  "summary": "1-2 sentence explanation of the result and key drivers.",
+  "dataNote": "Source and date"
 }`;
 }
 
@@ -122,6 +118,7 @@ export async function handleRunValuation(req, res) {
   const prompt = buildPrompt(ticker, method, variables);
   const anthropicRes = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
+    signal: AbortSignal.timeout(25000),
     headers: {
       "Content-Type": "application/json",
       "x-api-key": process.env.ANTHROPIC_API_KEY,
@@ -130,7 +127,7 @@ export async function handleRunValuation(req, res) {
     },
     body: JSON.stringify({
       model: "claude-sonnet-4-6",
-      max_tokens: 1000,
+      max_tokens: 500,
       tools: [{ type: "web_search_20250305", name: "web_search" }],
       messages: [{ role: "user", content: prompt }],
     }),
