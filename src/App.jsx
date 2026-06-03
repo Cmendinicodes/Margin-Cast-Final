@@ -225,31 +225,7 @@ async function fetchPrices(ticker, token) {
 // PAYWALL MODAL
 // ─────────────────────────────────────────────────────────────────────────────
 function PaywallModal({ used, limit, onClose }) {
-  const { getToken } = useAuth();
-  const { user } = useUser();
-  const [loading, setLoading] = useState(false);
-
-  const handleUpgrade = async () => {
-    setLoading(true);
-    try {
-      const token = await getToken();
-      const res = await fetch("/api/create-checkout", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          userId: user?.id,
-          email: user?.primaryEmailAddress?.emailAddress,
-        }),
-      });
-      const data = await res.json();
-      if (data.url) window.location.href = data.url;
-    } catch {
-      setLoading(false);
-    }
-  };
+  const WHOP_URL = "https://whop.com/margin-cast/";
 
   return (
     <div style={{
@@ -274,12 +250,12 @@ function PaywallModal({ used, limit, onClose }) {
           You've used your {limit} free valuations today
         </h2>
         <p style={{ color: "#6b6458", fontSize: 14, margin: "0 0 28px", lineHeight: 1.6 }}>
-          Upgrade to Pro for unlimited access
+          Get more valuations with a credit pack
         </p>
 
         <div style={{ marginBottom: 28 }}>
           {[
-            "Unlimited valuations every day",
+            "Credits never expire",
             "All 8 professional valuation methods",
             "Quant Prediction (coming soon)",
           ].map((b) => (
@@ -290,25 +266,35 @@ function PaywallModal({ used, limit, onClose }) {
           ))}
         </div>
 
-        <div style={{ textAlign: "center", marginBottom: 24 }}>
-          <span style={{ fontSize: 36, fontFamily: "monospace", color: "#c9b96e", fontWeight: 700 }}>$7.99</span>
-          <span style={{ color: "#6b6458", fontSize: 14 }}> / month</span>
-        </div>
-
-        <button
-          onClick={handleUpgrade}
-          disabled={loading}
+        <a
+          href={WHOP_URL}
+          target="_blank"
+          rel="noopener noreferrer"
           style={{
-            width: "100%", background: loading ? "#2a2830" : "#c9b96e",
-            color: loading ? "#6b6458" : "#0a0a0f",
-            border: "none", padding: "16px", fontSize: 16,
-            cursor: loading ? "not-allowed" : "pointer",
-            fontFamily: "Georgia, serif", fontWeight: 700,
-            borderRadius: 4, letterSpacing: 1, marginBottom: 12,
+            display: "block", width: "100%", background: "#c9b96e",
+            color: "#0a0a0f", border: "none", padding: "14px", fontSize: 15,
+            cursor: "pointer", fontFamily: "Georgia, serif", fontWeight: 700,
+            borderRadius: 4, letterSpacing: 1, marginBottom: 10,
+            textAlign: "center", textDecoration: "none",
           }}
         >
-          {loading ? "Redirecting..." : "Upgrade to Pro →"}
-        </button>
+          Starter Pack — 10 Credits →
+        </a>
+
+        <a
+          href={WHOP_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: "block", width: "100%", background: "transparent",
+            color: "#c9b96e", border: "1px solid #c9b96e", padding: "14px", fontSize: 15,
+            cursor: "pointer", fontFamily: "Georgia, serif", fontWeight: 700,
+            borderRadius: 4, letterSpacing: 1, marginBottom: 12,
+            textAlign: "center", textDecoration: "none",
+          }}
+        >
+          Power Pack — 100 Credits →
+        </a>
 
         <div style={{ textAlign: "center" }}>
           <button

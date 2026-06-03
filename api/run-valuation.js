@@ -9,6 +9,17 @@ const redis = new Redis({
 
 const FREE_LIMIT = 5;
 
+async function redeemPendingCredits(userId) {
+  const user = await clerk.users.getUser(userId);
+  const email = user.emailAddresses[0]?.emailAddress;
+  if (!email) return;
+  const pending = await redis.get(`pending-credits:${email}`);
+  if (pending && parseInt(pending) > 0) {
+    await redis.incrby(`credits:${userId}`, parseInt(pending));
+    await redis.del(`pending-credits:${email}`);
+  }
+}
+
 async function getUserId(token) {
   const payload = await verifyToken(token, {
     secretKey: process.env.CLERK_SECRET_KEY,
@@ -92,10 +103,12 @@ export async function handleRunValuation(req, res) {
   const { ticker, method, variables } = body;
   if (!ticker || !method) return res.status(400).json({ error: "Missing ticker or method" });
 
-  const user = await clerk.users.getUser(userId);
-  const isPro = user.publicMetadata?.plan === "pro";
+  await redeemPendingCredits(userId);
 
-  if (!isPro) {
+  const credits = Number((await redis.get(`credits:${userId}`)) ?? 0);
+  if (credits > 0) {
+    await redis.decrby(`credits:${userId}`, 1);
+  } else {
     const today = new Date().toISOString().slice(0, 10);
     const key = `usage:${userId}:${today}`;
     const used = Number((await redis.get(key)) ?? 0);
