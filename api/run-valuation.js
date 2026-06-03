@@ -103,20 +103,24 @@ export async function handleRunValuation(req, res) {
   const { ticker, method, variables } = body;
   if (!ticker || !method) return res.status(400).json({ error: "Missing ticker or method" });
 
-  await redeemPendingCredits(userId);
+  const isOwner = userId === 'user_3BlrsXyaM9ASvEietWv2qsU1tVS';
 
-  const credits = Number((await redis.get(`credits:${userId}`)) ?? 0);
-  if (credits > 0) {
-    await redis.decrby(`credits:${userId}`, 1);
-  } else {
-    const today = new Date().toISOString().slice(0, 10);
-    const key = `usage:${userId}:${today}`;
-    const used = Number((await redis.get(key)) ?? 0);
-    if (used >= FREE_LIMIT) {
-      return res.status(429).json({ error: "limit_reached", used, limit: FREE_LIMIT });
+  if (!isOwner) {
+    await redeemPendingCredits(userId);
+
+    const credits = Number((await redis.get(`credits:${userId}`)) ?? 0);
+    if (credits > 0) {
+      await redis.decrby(`credits:${userId}`, 1);
+    } else {
+      const today = new Date().toISOString().slice(0, 10);
+      const key = `usage:${userId}:${today}`;
+      const used = Number((await redis.get(key)) ?? 0);
+      if (used >= FREE_LIMIT) {
+        return res.status(429).json({ error: "limit_reached", used, limit: FREE_LIMIT });
+      }
+      await redis.incr(key);
+      await redis.expire(key, 86400);
     }
-    await redis.incr(key);
-    await redis.expire(key, 86400);
   }
 
   const prompt = buildPrompt(ticker, method, variables);
