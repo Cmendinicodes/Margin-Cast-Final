@@ -44,16 +44,7 @@ export async function handleRunQuant(req, res) {
   const { ticker } = body;
   if (!ticker) return res.status(400).json({ error: "Missing ticker" });
 
-  const prompt = `Use web search to find the daily closing prices for the stock ticker ${ticker.toUpperCase()} for the past 2 years.
-
-Respond ONLY with a JSON array (no markdown, no backticks, no explanation) in this exact format:
-[{"date":"2023-01-02","close":150.23},{"date":"2023-01-03","close":148.50},...]
-
-Rules:
-- Sort chronologically, oldest first
-- Dates must be in YYYY-MM-DD format
-- Close values must be numbers, not strings
-- Include every available trading day for the past 2 years`;
+  const prompt = `Fetch the last 2 years of daily closing prices for ${ticker.toUpperCase()} from Yahoo Finance. Return ONLY a valid JSON array of objects with "date" (YYYY-MM-DD) and "close" (number) fields, sorted oldest to newest. No markdown, no explanation, just the raw JSON array.`;
 
   const anthropicRes = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -64,7 +55,7 @@ Rules:
       "anthropic-beta": "web-search-2025-03-05",
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-6",
+      model: "claude-sonnet-4-20250514",
       max_tokens: 8000,
       tools: [{ type: "web_search_20250305", name: "web_search" }],
       messages: [{ role: "user", content: prompt }],
@@ -77,12 +68,11 @@ Rules:
   }
 
   const text = data.content.filter((b) => b.type === "text").map((b) => b.text).join("");
-  const arrayMatch = text.replace(/```json|```/g, "").trim().match(/\[[\s\S]*\]/);
-  if (!arrayMatch) return res.status(502).json({ error: "Could not parse price data from response" });
+  const cleaned = text.replace(/```json/g, "").replace(/```/g, "").trim();
 
   let prices;
-  try { prices = JSON.parse(arrayMatch[0]); }
-  catch { return res.status(502).json({ error: "Invalid JSON in price data response" }); }
+  try { prices = JSON.parse(cleaned); }
+  catch { return res.status(502).json({ error: "Invalid JSON in price data response", raw: text.slice(0, 500) }); }
 
   return res.status(200).json(prices);
 }
