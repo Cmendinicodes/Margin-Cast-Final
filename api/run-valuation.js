@@ -145,7 +145,11 @@ export async function handleRunValuation(req, res) {
   const jsonMatch = text.replace(/```json|```/g, "").trim().match(/\{[\s\S]*\}/);
   if (!jsonMatch) return res.status(502).json({ error: "Could not parse valuation response" });
 
-  return res.status(200).json(JSON.parse(jsonMatch[0]));
+  try {
+    return res.status(200).json(JSON.parse(jsonMatch[0]));
+  } catch {
+    return res.status(502).json({ error: "Invalid JSON in valuation response", raw: text.slice(0, 500) });
+  }
 }
 
 export default handleRunValuation;
