@@ -116,7 +116,7 @@ export async function handleRunValuation(req, res) {
       "anthropic-beta": "web-search-2025-03-05",
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-6",
+      model: "claude-sonnet-4-5",
       max_tokens: 1000,
       tools: [{ type: "web_search_20250305", name: "web_search" }],
       messages: [{ role: "user", content: prompt }],
