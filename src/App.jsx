@@ -512,8 +512,9 @@ function StockValuationApp({ onPaywall, onValuationComplete }) {
 
   const verdictColor = (verdict) => {
     if (!verdict) return "#a0a0a0";
-    if (verdict.includes("UNDER")) return "#22c55e";
-    if (verdict.includes("OVER"))  return "#ef4444";
+    const v = verdict.toUpperCase();
+    if (v.includes("UNDER")) return "#22c55e";
+    if (v.includes("OVER"))  return "#ef4444";
     return "#f59e0b";
   };
 
@@ -746,12 +747,21 @@ function StockValuationApp({ onPaywall, onValuationComplete }) {
                 background: "#12121a", border: "1px solid #2a2830", borderTop: "none", padding: "20px 24px",
                 display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 16,
               }}>
-                {result.keyMetrics?.map((m, i) => (
-                  <div key={i} style={{ borderLeft: "2px solid #2a2830", paddingLeft: 12 }}>
-                    <div style={{ fontSize: 11, color: "#6b6458", letterSpacing: 1, textTransform: "uppercase", marginBottom: 4 }}>{m.label}</div>
-                    <div style={{ fontSize: 16, fontFamily: "monospace", color: "#c9b96e" }}>{m.value}</div>
-                  </div>
-                ))}
+                {result.keyMetrics && (
+                  Array.isArray(result.keyMetrics)
+                    ? result.keyMetrics.map((m, i) => (
+                        <div key={i} style={{ borderLeft: "2px solid #2a2830", paddingLeft: 12 }}>
+                          <div style={{ fontSize: 11, color: "#6b6458", letterSpacing: 1, textTransform: "uppercase", marginBottom: 4 }}>{m.label}</div>
+                          <div style={{ fontSize: 16, fontFamily: "monospace", color: "#c9b96e" }}>{m.value}</div>
+                        </div>
+                      ))
+                    : Object.entries(result.keyMetrics).map(([label, value], i) => (
+                        <div key={i} style={{ borderLeft: "2px solid #2a2830", paddingLeft: 12 }}>
+                          <div style={{ fontSize: 11, color: "#6b6458", letterSpacing: 1, textTransform: "uppercase", marginBottom: 4 }}>{label}</div>
+                          <div style={{ fontSize: 16, fontFamily: "monospace", color: "#c9b96e" }}>{value}</div>
+                        </div>
+                      ))
+                )}
               </div>
 
               <div style={{ background: "#12121a", border: "1px solid #2a2830", borderTop: "none", borderRadius: "0 0 4px 4px", padding: "20px 24px" }}>
